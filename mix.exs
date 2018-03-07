@@ -1,28 +1,46 @@
 defmodule Spotter.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+
   def project do
     [
       app: :spotter,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
+      description: description(),
+      package: package(),
       deps: deps()
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
+  defp description do
+    """
+    Middleware for message queue-based microservices
+    """
+  end
+
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
+      {:confex, "~> 3.3.0"},
+      {:amqp, "~> 1.0"}
+    ]
+  end
+
+  defp package do
+    [
+       name: :spotter,
+       files: ["lib", "mix.exs", "README.md", "LICENSE"],
+       maintainers: ["Valeryi Savich"],
+       licenses: ["BSD 3-clause"],
+       links: %{"GitHub" => "https://github.com/OpenMatchmaking/spotter"}
     ]
   end
 end
