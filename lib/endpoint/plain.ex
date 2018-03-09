@@ -19,17 +19,4 @@ defmodule Spotter.Endpoint.Plain do
   def match(endpoint, path) do
     endpoint.path == path
   end
-
-  @doc """
-  Checks that the passed permissions can provide an access to the certain resource.
-  """
-  def has_permission(endpoint, permissions) do
-    case endpoint.permissions do
-      [] -> true
-      required_permissions -> MapSet.subset?(
-                                MapSet.new(required_permissions),
-                                MapSet.new(permissions)
-                              )
-    end
-  end
 end
