@@ -1,14 +1,14 @@
-defmodule SpotterTest do
+defmodule SpotterEndpointPlainTest do
   use ExUnit.Case
 
-  test "Spotter.Endpoint.Plain contuctor set permissions to empty list" do
+  test "Spotter.Endpoint.Plain contructor set permissions to empty list" do
     endpoint = %Spotter.Endpoint.Plain{path: "api.matchmaking.search"}
 
     assert endpoint.path == "api.matchmaking.search"
     assert endpoint.permissions == []
   end
 
-  test "Spotter.Endpoint.Plain contuctor with custom permissions" do
+  test "Spotter.Endpoint.Plain contructor with custom permissions" do
     endpoint = %Spotter.Endpoint.Plain{
       path: "api.matchmaking.search",
       permissions: ["api.search.retrieve", ]
