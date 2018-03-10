@@ -14,6 +14,17 @@ defmodule Spotter.Endpoint.Plain do
   defstruct [:path, permissions: []]
 
   @doc """
+  Returns a new instance of Spotter.Endpoint.Plain struct.
+  """
+  @spec new(path::String.t, permissions::[String.t]) :: Spotter.Endpoint.Plain
+  def new(path, permissions) do
+    %Spotter.Endpoint.Plain{
+      path: path,
+      permissions: permissions
+    }
+  end
+
+  @doc """
   Checking a match of the passed path with the endpoint path by exact string comparison.
   """
   def match(endpoint, path) do
