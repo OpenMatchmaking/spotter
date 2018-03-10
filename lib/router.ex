@@ -1,6 +1,6 @@
 defmodule Spotter.Router do
   @moduledoc """
-  Router struct the handles the endpoints and makes dispatching.
+  Router struct that handles the endpoints and makes dispatching.
   """
   @typep default_endpoint_struct :: Spotter.Endpoint.Plain | Spotter.Endpoint.Dynamic
   @typep default_endpoint_args :: {String.t, [String.t]}
@@ -11,8 +11,8 @@ defmodule Spotter.Router do
   Defines the router struct.
 
   * :endpoints - List of endpoints, where each endpoint represented as the
-  `Spotter.Endpoint.Plain` or the `Spotter.Endpoint.Dynamic` or Used Defined structures,
-  derived from `Spotter.Endpoint.Base`.
+  `Spotter.Endpoint.Plain` or the `Spotter.Endpoint.Dynamic` or a Used Defined structure,
+  derived from the `Spotter.Endpoint.Base`.
   """
   @enforce_keys [:endpoints]
   defstruct [:endpoints]
@@ -46,6 +46,6 @@ defmodule Spotter.Router do
   """
   @spec dispatch(router::Spotter.Router, path::Strint.t) :: dispatch_result
   def dispatch(router, path) do
-    Enum.find(router.endpoints, fn(endpoint) ->  endpoint.__struct__.match(endpoint, path) end)
+    Enum.find(router.endpoints, fn(endpoint) -> endpoint.__struct__.match(endpoint, path) end)
   end
 end
