@@ -8,7 +8,7 @@ defmodule Spotter.Router do
   @typep dispatch_result :: default_endpoint_struct | UserDefined | nil
 
   @doc """
-  Defines the routher struct.
+  Defines the router struct.
 
   * :endpoints - List of endpoints, where each endpoint represented as the
   `Spotter.Endpoint.Plain` or the `Spotter.Endpoint.Dynamic` or Used Defined structures,
@@ -46,6 +46,6 @@ defmodule Spotter.Router do
   """
   @spec dispatch(router::Spotter.Router, path::Strint.t) :: dispatch_result
   def dispatch(router, path) do
-    Enum.find(router.endpoints, fn(endpoint) -> endpoint.match(path) end)
+    Enum.find(router.endpoints, fn(endpoint) ->  endpoint.__struct__.match(endpoint, path) end)
   end
 end
