@@ -17,7 +17,7 @@ defmodule Spotter.MixProject do
 
   def application do
     [
-      extra_applications: [:confex]
+      extra_applications: [:amqp, :confex]
     ]
   end
 

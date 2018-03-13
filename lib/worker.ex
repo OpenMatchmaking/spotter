@@ -28,7 +28,7 @@ defmodule Spotter.Worker do
       # Server callbacks
 
       defp open_connection(opts) do
-        case Connection.open(opts) do
+        case AMQP.Connection.open(opts) do
           {:ok, connection} ->
             {:ok, connection}
           {:error, reason} ->
@@ -47,6 +47,7 @@ defmodule Spotter.Worker do
       def init(opts) do
         config = @defaults
           |> Keyword.merge(opts)
+          |> Confex.Resolver.resolve!
 
         {:ok, connection} = open_connection(config)
         Process.monitor(connection.pid)
