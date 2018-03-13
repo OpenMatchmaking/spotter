@@ -28,6 +28,10 @@ defmodule SpotterWorkerTest do
       endpoint.path == path
     end
 
+    def has_permissions(endpoint, permissions) do
+      access_granted?(endpoint.permissions, permissions)
+    end
+
     def validate(_endpoint, data) do
       case String.equivalent?(data, "DATA") do
         true -> {:ok, data}
@@ -98,7 +102,7 @@ defmodule SpotterWorkerTest do
       case Spotter.Router.dispatch(@router, headers["path"]) do
         endpoint when endpoint != nil ->
           permissions = String.split(headers["permissions"], ";", trim: true)
-          case endpoint.__struct__.has_permission(endpoint, permissions) do
+          case endpoint.__struct__.has_permissions(endpoint, permissions) do
             true ->
               case endpoint.__struct__.validate(endpoint, payload) do
                 {:ok, data} -> AMQP.Basic.publish(channel, @exchange, @queue_forward, data, persistent: true)

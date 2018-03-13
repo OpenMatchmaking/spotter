@@ -16,13 +16,13 @@ defmodule SpotterRouterTest do
     assert length(router.endpoints) == 2
 
     endpoint_plain = Enum.at(router.endpoints, 0)
-    assert endpoint_plain.path == "api.matchmaking.search"
-    assert endpoint_plain.permissions == ["get"]
+    assert endpoint_plain.base.path == "api.matchmaking.search"
+    assert endpoint_plain.base.permissions == ["get"]
 
     endpoint_dynamic = Enum.at(router.endpoints, 1)
-    assert endpoint_dynamic.path == "api.leaderboard.{count}"
-    assert endpoint_dynamic.permissions == ["get"]
     assert endpoint_dynamic.regex == ~r/^api.leaderboard.(?P<count>[^{}\/.]+)$/
+    assert endpoint_dynamic.base.path == "api.leaderboard.{count}"
+    assert endpoint_dynamic.base.permissions == ["get"]
   end
 
   test "Spotter.Router contructor with custom endpoints" do
@@ -34,13 +34,13 @@ defmodule SpotterRouterTest do
     assert length(router.endpoints) == 2
 
     endpoint_plain = Enum.at(router.endpoints, 0)
-    assert endpoint_plain.path == "api.matchmaking.search"
-    assert endpoint_plain.permissions == ["get"]
+    assert endpoint_plain.base.path == "api.matchmaking.search"
+    assert endpoint_plain.base.permissions == ["get"]
 
     endpoint_dynamic = Enum.at(router.endpoints, 1)
-    assert endpoint_dynamic.path == "api.leaderboard.{count}"
-    assert endpoint_dynamic.permissions == ["get"]
     assert endpoint_dynamic.regex == ~r/^api.leaderboard.(?P<count>[^{}\/.]+)$/
+    assert endpoint_dynamic.base.path == "api.leaderboard.{count}"
+    assert endpoint_dynamic.base.permissions == ["get"]
   end
 
   test "Spotter.Router dispatch returns an endpoint for a match" do
@@ -51,8 +51,8 @@ defmodule SpotterRouterTest do
 
     endpoint = Spotter.Router.dispatch(router, "api.matchmaking.search")
     assert endpoint != nil
-    assert endpoint.path == "api.matchmaking.search"
-    assert endpoint.permissions == ["get"]
+    assert endpoint.base.path == "api.matchmaking.search"
+    assert endpoint.base.permissions == ["get"]
   end
 
   test "Spotter.Router dispatch returns nil for not found endpoint" do

@@ -11,12 +11,33 @@ defmodule Spotter.Endpoint.Dynamic do
   @doc """
   Defines the endpoint with dynamic path.
 
-  * :path - Path to the recource. For example, `api.learderboard.get.{id}`. Required.
   * :regex - Regex expression for further checks with the passed path. Required.
-  * :permissions - List of permissions, required for getting an access to the resource. Default is `[]`.
+  * :data.path - Path to the recource. For example, `api.learderboard.get.{id}`. Required.
+  * :data.permissions - List of permissions, required for getting an access to the resource. Default is `[]`.
   """
-  @enforce_keys [:path, :regex]
-  defstruct [:path, :regex, permissions: []]
+  @enforce_keys [:regex, :base]
+  defstruct [:regex, base: %Spotter.Endpoint.Base{}]
+
+  @doc false
+  defmacro __using__(_opts) do
+    quote do
+      @behaviour Spotter.Endpoint.Dynamic
+
+      @doc """
+      Post-processing data before passing it further.
+      """
+      @spec transform(endpoint::UserDefined, data::any) :: {:ok, any} | {:error, String.t}
+      def transform(endpoint, data), do: {:ok, data}
+
+      @doc"""
+      Validate an input data.
+      """
+      @spec validate(endpoint::UserDefined, data::any) :: {:ok, any} | {:error, String.t}
+      def validate(endpoint, data), do: {:ok, data}
+
+      defoverridable [transform: 2, validate: 2]
+    end
+  end
 
   # Generates a regular expression for the dynamic parameter in URL if it was found. Otherwise
   # will return a string as is.
@@ -47,16 +68,27 @@ defmodule Spotter.Endpoint.Dynamic do
   @spec new(path::String.t, permissions::[String.t]) :: Spotter.Endpoint.Dynamic
   def new(path, permissions) do
     %Spotter.Endpoint.Dynamic{
-      path: path,
       regex: generate_regex(path),
-      permissions: permissions
+      base: %Spotter.Endpoint.Base{
+        path: path,
+        permissions: permissions
+      }
     }
   end
 
   @doc """
   Checking a match of the passed path with the endpoint path via regex search.
   """
+  @spec match(endpoint::Spotter.Endpoint.Dynamic, path::String.t) :: boolean()
   def match(endpoint, path) do
     Regex.match?(endpoint.regex, path)
+  end
+
+  @doc """
+  Checks that the passed permissions can provide an access to the certain resource.
+  """
+  @spec has_permissions(endpoint::Spotter.Endpoint.Dynamic, permissions::[String.t]) :: boolean()
+  def has_permissions(endpoint, permissions) do
+    access_granted?(endpoint.base.permissions, permissions)
   end
 end
