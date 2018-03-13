@@ -54,7 +54,7 @@ defmodule Spotter.Worker do
         Process.monitor(connection.pid)
 
         {:ok, :done} = configure(connection, config)
-        {:ok, [connection: connection, config: config, channel: channel]}
+        {:ok, [connection: connection, config: config]}
       end
 
       def handle_info({:DOWN, _monitor_ref, :process, _pid, _reason}, state) do
