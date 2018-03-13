@@ -42,10 +42,12 @@ defmodule Spotter.Worker do
       Post-initialization method for a worker. Specify here exchanges, queues and so on.
       """
       def configure(connection, _config) do
-        {:ok, :done}
+        {:ok, []}
       end
 
       def init(opts) do
+        Process.flag(:trap_exit, true)
+
         config = @defaults
           |> Keyword.merge(opts)
           |> Confex.Resolver.resolve!
@@ -53,8 +55,8 @@ defmodule Spotter.Worker do
         {:ok, connection} = open_connection(config)
         Process.monitor(connection.pid)
 
-        {:ok, :done} = configure(connection, config)
-        {:ok, [connection: connection, config: config]}
+        {:ok, meta} = configure(connection, config)
+        {:ok, [connection: connection, config: config, meta: meta]}
       end
 
       def handle_info({:DOWN, _monitor_ref, :process, _pid, _reason}, state) do
@@ -62,7 +64,7 @@ defmodule Spotter.Worker do
         Process.demonitor(old_connection.pid)
 
         {:ok, connection} = open_connection(state[:config])
-        {:noreply, [connection: connection, config: state[:config]]}
+        {:noreply, [connection: connection, config: state[:config], meta: state[:meta]]}
       end
 
       defoverridable [configure: 2]
