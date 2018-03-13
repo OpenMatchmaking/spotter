@@ -41,7 +41,8 @@ defmodule Spotter.Worker do
       @doc """
       Post-initialization method for a worker. Specify here exchanges, queues and so on.
       """
-      def configure(_connection, _config) do
+      def configure(connection, _config) do
+        {:ok, :done}
       end
 
       def init(opts) do
@@ -52,8 +53,8 @@ defmodule Spotter.Worker do
         {:ok, connection} = open_connection(config)
         Process.monitor(connection.pid)
 
-        configure(connection, config)
-        {:ok, [connection: connection, config: config]}
+        {:ok, :done} = configure(connection, config)
+        {:ok, [connection: connection, config: config, channel: channel]}
       end
 
       def handle_info({:DOWN, _monitor_ref, :process, _pid, _reason}, state) do
