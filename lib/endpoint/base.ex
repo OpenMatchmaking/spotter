@@ -21,19 +21,19 @@ defmodule Spotter.Endpoint.Base do
       @doc """
       Post-processing data before passing it further.
       """
-      @spec transform(any) :: {:ok, any} | {:error, String.t}
-      def transform(data), do: data
+      @spec transform(endpoint::any, data::any) :: {:ok, any} | {:error, String.t}
+      def transform(endpoint, data), do: {:ok, data}
 
       @doc"""
       Validate an input data.
       """
-      @spec validate(any) :: {:ok, any} | {:error, String.t}
-      def validate(data), do: data
+      @spec validate(endpoint::any, data::any) :: {:ok, any} | {:error, String.t}
+      def validate(endpoint, data), do: {:ok, data}
 
       @doc """
       Checks that the passed permissions can provide an access to the certain resource.
       """
-      @spec has_permission(any, [String.t]) :: boolean()
+      @spec has_permission(endpoint::any, permissions::[String.t]) :: boolean()
       def has_permission(endpoint, permissions) do
         case endpoint.permissions do
           [] -> true
@@ -44,7 +44,7 @@ defmodule Spotter.Endpoint.Base do
         end
       end
 
-      defoverridable [transform: 1, validate: 1, has_permission: 2]
+      defoverridable [transform: 2, validate: 2, has_permission: 2]
     end
   end
 end
