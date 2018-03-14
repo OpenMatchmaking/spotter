@@ -9,7 +9,7 @@ defmodule SpotterWorkerTest do
   @custom_amqp_opts [
     username: "user",
     password: "password",
-    host: "rabbitmq",
+    host: "localhost",
     port: 5672,
     virtual_host: "/"
   ]
@@ -26,6 +26,10 @@ defmodule SpotterWorkerTest do
 
     def match(endpoint, path) do
       endpoint.path == path
+    end
+
+    def has_permissions(endpoint, permissions) do
+      access_granted?(endpoint.permissions, permissions)
     end
 
     def validate(_endpoint, data) do
@@ -67,6 +71,7 @@ defmodule SpotterWorkerTest do
 
     # Handle the trapped exit call
     def handle_info({:EXIT, _from, reason}, state) do
+      cleanup(reason, state)
       {:stop, reason, state}
     end
 
@@ -93,12 +98,34 @@ defmodule SpotterWorkerTest do
       {:noreply, state}
     end
 
+    def terminate(reason, state) do
+      cleanup(reason, state)
+      state
+    end
+
+    defp cleanup(_reason, state) do
+      connection = state[:connection]
+      channel = state[:meta][:channel]
+      queue_request = state[:meta][:queue_request][:queue]
+      queue_forward = state[:meta][:queue_forward][:queue]
+
+      AMQP.Queue.unbind(channel, queue_forward, @exchange, routing_key: queue_forward)
+      AMQP.Queue.purge(channel, queue_forward)
+      AMQP.Queue.delete(channel, queue_forward, if_unused: false, if_empty: false)
+
+      AMQP.Queue.unbind(channel, queue_request, @exchange, routing_key: queue_request)
+      AMQP.Queue.purge(channel, queue_request)
+      AMQP.Queue.delete(channel, queue_request, if_unused: false, if_empty: false)
+
+      AMQP.Connection.close(connection)
+    end
+
     # Processing a message
     defp consume(channel, tag, reply_to, headers, payload) do
       case Spotter.Router.dispatch(@router, headers["path"]) do
         endpoint when endpoint != nil ->
           permissions = String.split(headers["permissions"], ";", trim: true)
-          case endpoint.__struct__.has_permission(endpoint, permissions) do
+          case endpoint.__struct__.has_permissions(endpoint, permissions) do
             true ->
               case endpoint.__struct__.validate(endpoint, payload) do
                 {:ok, data} -> AMQP.Basic.publish(channel, @exchange, @queue_forward, data, persistent: true)
@@ -116,6 +143,11 @@ defmodule SpotterWorkerTest do
 
   setup_all do
     {:ok, pid} = CustomWorker.start_link(@custom_amqp_opts)
+
+    on_exit fn ->
+      Process.exit(pid, :wtf)
+    end
+
     {:ok, [worker: pid]}
   end
 
@@ -133,6 +165,12 @@ defmodule SpotterWorkerTest do
     {:ok, channel, queue}
   end
 
+  def delete_response_queue(channel, queue) do
+    AMQP.Queue.unbind(channel, queue[:queue], @generic_exchange, routing_key: queue[:queue])
+    AMQP.Queue.delete(channel, queue[:queue])
+    :ok
+  end
+
   test "CustomWorker forwards message to the next queue", _state do
     {:ok, connection} = create_client_connection()
     {:ok, channel, queue} = create_response_queue(connection)
@@ -148,6 +186,7 @@ defmodule SpotterWorkerTest do
     assert payload == "DATA"
 
     AMQP.Basic.ack(channel, tag)
+    delete_response_queue(channel, queue)
     AMQP.Connection.close(connection)
   end
 
@@ -165,6 +204,7 @@ defmodule SpotterWorkerTest do
     assert payload == "INVALID_URL"
 
     AMQP.Basic.ack(channel, tag)
+    delete_response_queue(channel, queue)
     AMQP.Connection.close(connection)
   end
 
@@ -183,6 +223,7 @@ defmodule SpotterWorkerTest do
     assert payload == "VALIDATION_ERROR"
 
     AMQP.Basic.ack(channel, tag)
+    delete_response_queue(channel, queue)
     AMQP.Connection.close(connection)
   end
 
@@ -201,7 +242,7 @@ defmodule SpotterWorkerTest do
     assert payload == "NO_PERMISSIONS"
 
     AMQP.Basic.ack(channel, tag)
+    delete_response_queue(channel, queue)
     AMQP.Connection.close(connection)
   end
 end
-

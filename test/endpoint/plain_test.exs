@@ -4,15 +4,15 @@ defmodule SpotterEndpointPlainTest do
   test "Spotter.Endpoint.Plain contructor set permissions to empty list" do
     endpoint = Spotter.Endpoint.Plain.new("api.matchmaking.search", [])
 
-    assert endpoint.path == "api.matchmaking.search"
-    assert endpoint.permissions == []
+    assert endpoint.base.path == "api.matchmaking.search"
+    assert endpoint.base.permissions == []
   end
 
   test "Spotter.Endpoint.Plain contructor with custom permissions" do
     endpoint = Spotter.Endpoint.Plain.new("api.matchmaking.search", ["api.search.retrieve"])
 
-    assert endpoint.path == "api.matchmaking.search"
-    assert endpoint.permissions == ["api.search.retrieve", ]
+    assert endpoint.base.path == "api.matchmaking.search"
+    assert endpoint.base.permissions == ["api.search.retrieve", ]
   end
 
   test "Spotter.Endpoint.Plain.match returns true for exact match" do
@@ -30,18 +30,18 @@ defmodule SpotterEndpointPlainTest do
   test "Spotter.Endpoint.Plain.has_permission returns true for correct permissions" do
     endpoint = Spotter.Endpoint.Plain.new("api.matchmaking.search", ["get", "update"])
 
-    assert Spotter.Endpoint.Plain.has_permission(endpoint, ["get", "update", "delete"])
+    assert Spotter.Endpoint.Plain.has_permissions(endpoint, ["get", "update", "delete"])
   end
 
   test "Spotter.Endpoint.Plain.has_permission returns false for invalid permissions" do
     endpoint = Spotter.Endpoint.Plain.new("api.matchmaking.search", ["list", "delete"])
 
-    assert not Spotter.Endpoint.Plain.has_permission(endpoint, ["list", "update"])
+    assert not Spotter.Endpoint.Plain.has_permissions(endpoint, ["list", "update"])
   end
 
   test "Spotter.Endpoint.Plain.has_permission returns true for the endpoint without permissions" do
     endpoint = Spotter.Endpoint.Plain.new("api.matchmaking.search", [])
 
-    assert Spotter.Endpoint.Plain.has_permission(endpoint, ["get", "patch", "head"])
+    assert Spotter.Endpoint.Plain.has_permissions(endpoint, ["get", "patch", "head"])
   end
 end
