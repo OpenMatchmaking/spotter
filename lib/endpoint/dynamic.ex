@@ -18,27 +18,6 @@ defmodule Spotter.Endpoint.Dynamic do
   @enforce_keys [:regex, :base]
   defstruct [:regex, base: %Spotter.Endpoint.Base{}]
 
-  @doc false
-  defmacro __using__(_opts) do
-    quote do
-      @behaviour Spotter.Endpoint.Dynamic
-
-      @doc """
-      Post-processing data before passing it further.
-      """
-      @spec transform(endpoint::UserDefined, data::any) :: {:ok, any} | {:error, String.t}
-      def transform(endpoint, data), do: {:ok, data}
-
-      @doc"""
-      Validate an input data.
-      """
-      @spec validate(endpoint::UserDefined, data::any) :: {:ok, any} | {:error, String.t}
-      def validate(endpoint, data), do: {:ok, data}
-
-      defoverridable [transform: 2, validate: 2]
-    end
-  end
-
   # Generates a regular expression for the dynamic parameter in URL if it was found. Otherwise
   # will return a string as is.
   @spec process_path_part(path::String.t) :: String.t
