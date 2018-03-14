@@ -33,7 +33,7 @@ defmodule Spotter.Router do
   end
 
   @doc """
-  Creates a new routes based on the list of tuples. Each tuples represent an
+  Creates a new router based on the list of tuples. Each tuples represent an
   endpoints, that required for pre-processing and validating.
   """
   @spec new(endpoints::[default_endpoint_args | custom_endpoint_args]) :: Spotter.Router
@@ -42,7 +42,7 @@ defmodule Spotter.Router do
   end
 
   @doc """
-  Returns an endpoint that matches to the `path` argument. Otherwise returns nil.
+  Returns an endpoint that matches to the `path` argument. Otherwise returns `nil`.
   """
   @spec dispatch(router::Spotter.Router, path::Strint.t) :: dispatch_result
   def dispatch(router, path) do
