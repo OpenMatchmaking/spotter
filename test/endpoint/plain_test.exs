@@ -1,6 +1,5 @@
 defmodule SpotterEndpointPlainTest do
   use ExUnit.Case
-  require Spotter.Endpoint.Plain
 
   test "Spotter.Endpoint.Plain contructor set permissions to empty list" do
     endpoint = Spotter.Endpoint.Plain.new("api.matchmaking.search", [])
