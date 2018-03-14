@@ -7,8 +7,8 @@ defmodule Spotter.Endpoint.Plain do
   @doc """
   Defines the plain endpoint with static path.
 
-  * :data.path - Path to the resource. For example, `api.matchmaking.search`. Required.
-  * :data.permissions - List of permissions, required for getting an access to the resource. Default is `[]`.
+  * :base.path - Path to the resource. For example, `api.matchmaking.search`. Required.
+  * :base.permissions - List of permissions, required for getting an access to the resource. Default is `[]`.
   """
   @enforce_keys [:base]
   defstruct base: %Spotter.Endpoint.Base{}

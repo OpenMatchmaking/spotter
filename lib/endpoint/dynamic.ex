@@ -12,8 +12,8 @@ defmodule Spotter.Endpoint.Dynamic do
   Defines the endpoint with dynamic path.
 
   * :regex - Regex expression for further checks with the passed path. Required.
-  * :data.path - Path to the recource. For example, `api.learderboard.get.{id}`. Required.
-  * :data.permissions - List of permissions, required for getting an access to the resource. Default is `[]`.
+  * :base.path - Path to the recource. For example, `api.learderboard.get.{id}`. Required.
+  * :base.permissions - List of permissions, required for getting an access to the resource. Default is `[]`.
   """
   @enforce_keys [:regex, :base]
   defstruct [:regex, base: %Spotter.Endpoint.Base{}]
