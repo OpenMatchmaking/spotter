@@ -16,7 +16,7 @@ defmodule Spotter.Worker do
         host: {:system, "SPOTTER_AMQP_HOST", "localhost"},
         port: {:system, :integer, "SPOTTER_AMQP_PORT", 5672},
         virtual_host: {:system, "SPOTTER_AMQP_VHOST", "/"},
-        connection_timeout: {:system, :integer, "SPOTTER_AMQP_TIMEOUT", 10_000},
+        connection_timeout: {:system, :integer, "SPOTTER_AMQP_TIMEOUT", 60_000},
       ]
 
       # Client callbacks
@@ -61,7 +61,6 @@ defmodule Spotter.Worker do
 
       def handle_info({:DOWN, _monitor_ref, :process, _pid, _reason}, state) do
         old_connection = state[:connection]
-        Process.demonitor(old_connection.pid)
 
         {:ok, connection} = open_connection(state[:config])
         {:noreply, [connection: connection, config: state[:config], meta: state[:meta]]}
