@@ -13,7 +13,7 @@ The package can be installed via adding the `spotter` dependency to your list of
 
   ```elixir
   def deps do
-    [{:spotter, "~> 0.1.0"}]
+    [{:spotter, "~> 0.1.1"}]
   end
   ```
 
@@ -26,7 +26,7 @@ By default Spotter reads environment configuration and trying to establish a AMQ
   * `SPOTTER_AMQP_HOST` - host. Default: `localhost`
   * `SPOTTER_AMQP_PORT` - port. Default: `5672`
   * `SPOTTER_AMQP_VHOST` - default virtual host. Default: `/`
-  * `SPOTTER_AMQP_TIMEOUT` - timeout, Default: `10000` milliseconds.
+  * `SPOTTER_AMQP_TIMEOUT` - timeout, Default: `60000` milliseconds.
  
 Also it is possible to specify other connections that can be found in [AMQP client docs](https://hexdocs.pm/amqp/AMQP.Connection.html#open/1). 
 Any of those arguments (that were mentioned in the documentation) can be specified in `GenServer.start_link/3` function.
