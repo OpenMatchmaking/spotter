@@ -61,6 +61,7 @@ defmodule Spotter.Worker do
 
       def handle_info({:DOWN, _monitor_ref, :process, _pid, _reason}, state) do
         old_connection = state[:connection]
+        Process.demonitor(old_connection.pid)
 
         {:ok, connection} = open_connection(state[:config])
         {:noreply, [connection: connection, config: state[:config], meta: state[:meta]]}
