@@ -6,6 +6,7 @@ For example, it's very important for a cases when you should guaranteed that the
 # Features
 - Restricting an access to the certain message queues (or resources) via checking permissions
 - Pre-processing an input data before passing it to the next stage
+- Monitoring and re-establishing failed AMQP connections
 
 # Installing
 
@@ -14,6 +15,14 @@ The package can be installed via adding the `spotter` dependency to your list of
   ```elixir
   def deps do
     [{:spotter, "~> 0.1.2"}]
+  end
+  ```
+
+add the `:spotter` application to the extra_applications:
+
+  ```elixir
+  def application do
+    [extra_applications: [:spotter]]
   end
   ```
 
@@ -31,11 +40,29 @@ By default Spotter reads environment configuration and trying to establish a AMQ
 Also it is possible to specify other connections that can be found in [AMQP client docs](https://hexdocs.pm/amqp/AMQP.Connection.html#open/1). 
 Any of those arguments (that were mentioned in the documentation) can be specified in `GenServer.start_link/3` function.
 
-# Example
+# Examplee
+
+  1. Define a connection module which is going be used later 
 
   ```elixir
+  defmodule AppAMQPConnection do
+    use Spotter.AMQP.Connection,
+    otp_app: :custom_app
+    # You can specify here queue, exchange and QoS parameters when it necessary.
+    # However, will be better to store a configuration per each worker separately.
+  end
+  ```
+
+  2. Implement your own worker, like here
+  
+  ```elixir
   defmodule CustomWorker do
-    use Spotter.Worker
+    use Spotter.Worker,
+    connection: AppAMQPConnection
+
+    # Also you could specify here the `queue` \ `exchange` \ `qos` options
+    # instead of instantiating and binding the @queue_validate queue manually.
+    # For more details see: https://github.com/Nebo15/rbmq
 
     @exchange "amqp.direct"
     @queue_validate "validate.queue"
@@ -46,8 +73,8 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
       {"my.test.endpoint", ["get", "post"]},
     ])
 
-    def configure(connection, _config) do
-      {:ok, channel} = AMQP.Channel.open(connection)
+    # Specify here the queue that you want to use
+    def configure(channel, _config) do
       :ok = AMQP.Exchange.direct(channel, @exchange, durable: true)
 
       # An initial point where the worker do required stuff
@@ -59,11 +86,10 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
       :ok = AMQP.Queue.bind(channel, @queue_genstage, @exchange, routing_key: @queue_genstage)
 
       # Specify a consumer here
-      :ok = AMQP.Basic.qos(channel, prefetch_count: 1)
       {:ok, _} = AMQP.Basic.consume(channel, @queue_validate)
 
-      # The second element will be storing in state[:meta]
-      {:ok, [channel: channel, queue_request: queue_request, queue_forward: queue_forward]}
+      # And dont forget to return the channel
+      {:ok, channel}
     end
 
     # Invoked when a message successfully consumed
@@ -72,7 +98,7 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
       spawn fn -> consume(channel, tag, reply_to, headers, payload) end
       {:noreply, state}
     end
-        
+
     # Processing a consumed message
     defp consume(channel, tag, reply_to, headers, payload) do
       # Do some usefull stuff here ...
@@ -86,3 +112,28 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
   
   Pay attention to this `consume/5` method. I recommend to send async messages to GenServer that will be consumed later, so that when the message is processing a single thread wouldn't be blocked.  
   After that just specify this `CustomWorker` in your OTP application with supervisor and invoke `GenServer.start_link/3`.
+
+  3. Add the connection with the worker to yor application
+
+  ```elixir
+  defmodule CustomApp do
+    use Application
+
+    # For more detail see: http://elixir-lang.org/docs/stable/elixir/Application.html
+    def start(_type, _args) do
+      import Supervisor.Spec, warn: false
+
+      # Define workers and child supervisors to be supervised
+      children = [
+        supervisor(AppAMQPConnection, []),
+        worker(CustomWorker, []),
+      ]
+
+      opts = [strategy: :one_for_one, name: CustomAppSupervisor]
+      Supervisor.start_link(children, opts)
+    end
+  end
+  ``` 
+
+# Thanks
+This package is heavily inspired and built on the top of the RBMQ package. The orignal project is published under the MIT license and you can find the source code [here](https://github.com/Nebo15/rbmq).
