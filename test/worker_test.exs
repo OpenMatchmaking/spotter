@@ -14,6 +14,11 @@ defmodule SpotterWorkerTest do
     virtual_host: "/"
   ]
 
+  defmodule CustomConnection do
+    use Spotter.AMQP.Connection, 
+    otp_app: :spotter
+  end
+
   defmodule CustomEndpoint do
     use Spotter.Endpoint.Base
 
@@ -41,7 +46,9 @@ defmodule SpotterWorkerTest do
   end
 
   defmodule CustomWorker do
-    use Spotter.Worker
+    use Spotter.Worker,
+    otp_app: :spotter,
+    connection: CustomConnection
 
     @exchange "test.direct"
     @queue_request "worker_test_queue_request"
@@ -51,22 +58,21 @@ defmodule SpotterWorkerTest do
       {"api.matchmaking.search", ["get", "post"], CustomEndpoint},
     ])
 
-    def configure(connection, _config) do
-      {:ok, channel} = AMQP.Channel.open(connection)
+    def configure(channel, _config) do
       :ok = AMQP.Exchange.direct(channel, @exchange, durable: true, auto_delete: true)
 
       # An initial point where the worker do required stuff
-      {:ok, queue_request} = AMQP.Queue.declare(channel, @queue_request, durable: true, auto_delete: true)
+      {:ok, _} = AMQP.Queue.declare(channel, @queue_request, durable: true, auto_delete: true)
       :ok = AMQP.Queue.bind(channel, @queue_request, @exchange, routing_key: @queue_request)
 
       # Queue for a valid messages
-      {:ok, queue_forward} = AMQP.Queue.declare(channel, @queue_forward, durable: true, auto_delete: true)
+      {:ok, _} = AMQP.Queue.declare(channel, @queue_forward, durable: true, auto_delete: true)
       :ok = AMQP.Queue.bind(channel, @queue_forward, @exchange, routing_key: @queue_forward)
 
       :ok = AMQP.Basic.qos(channel, prefetch_count: 1)
       {:ok, _} = AMQP.Basic.consume(channel, @queue_request)
 
-      {:ok, [channel: channel, queue_request: queue_request, queue_forward: queue_forward]}
+      channel
     end
 
     # Handle the trapped exit call
@@ -77,7 +83,7 @@ defmodule SpotterWorkerTest do
 
     # Confirmation sent by the broker after registering this process as a consumer
     def handle_info({:basic_consume_ok, %{consumer_tag: _consumer_tag}}, state) do
-      {:noreply, state}
+     {:noreply, state}
     end
 
     # Sent by the broker when the consumer is unexpectedly cancelled
@@ -91,33 +97,25 @@ defmodule SpotterWorkerTest do
     end
 
     # Invoked when a message successfully consumed
-    def handle_info({:basic_deliver, payload, %{delivery_tag: tag, reply_to: reply_to, headers: headers}}, state) do
-      channel = state[:meta][:channel]
+    def handle_info({:basic_deliver, payload, %{delivery_tag: tag, reply_to: reply_to, headers: headers}}, channel) do
       message_headers = Enum.into(Enum.map(headers, fn({key, _, value}) -> {key, value} end), %{})
       spawn fn -> consume(channel, tag, reply_to, message_headers, payload) end
-      {:noreply, state}
+      {:noreply, channel}
     end
 
     def terminate(reason, state) do
-      cleanup(reason, state)
-      state
+     cleanup(reason, state)
+     state
     end
 
-    defp cleanup(_reason, state) do
-      connection = state[:connection]
-      channel = state[:meta][:channel]
-      queue_request = state[:meta][:queue_request][:queue]
-      queue_forward = state[:meta][:queue_forward][:queue]
+    defp cleanup(_reason, channel) do
+      AMQP.Queue.unbind(channel, @queue_forward, @exchange, routing_key: @queue_forward)
+      AMQP.Queue.purge(channel, @queue_forward)
+      AMQP.Queue.delete(channel, @queue_forward, if_unused: false, if_empty: false)
 
-      AMQP.Queue.unbind(channel, queue_forward, @exchange, routing_key: queue_forward)
-      AMQP.Queue.purge(channel, queue_forward)
-      AMQP.Queue.delete(channel, queue_forward, if_unused: false, if_empty: false)
-
-      AMQP.Queue.unbind(channel, queue_request, @exchange, routing_key: queue_request)
-      AMQP.Queue.purge(channel, queue_request)
-      AMQP.Queue.delete(channel, queue_request, if_unused: false, if_empty: false)
-
-      AMQP.Connection.close(connection)
+      AMQP.Queue.unbind(channel, @queue_request, @exchange, routing_key: @queue_request)
+      AMQP.Queue.purge(channel, @queue_request)
+      AMQP.Queue.delete(channel, @queue_request, if_unused: false, if_empty: false)
     end
 
     # Processing a message
@@ -142,13 +140,9 @@ defmodule SpotterWorkerTest do
   end
 
   setup_all do
-    {:ok, pid} = CustomWorker.start_link(@custom_amqp_opts)
-
-    on_exit fn ->
-      Process.exit(pid, :wtf)
-    end
-
-    {:ok, [worker: pid]}
+    CustomConnection.start_link
+    CustomWorker.start_link
+    {:ok, []}
   end
 
   def create_client_connection() do

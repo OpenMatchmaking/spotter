@@ -1,7 +1,7 @@
 defmodule Spotter.MixProject do
   use Mix.Project
 
-  @version "0.1.2"
+  @version "0.2.0"
 
   def project do
     [
@@ -23,7 +23,7 @@ defmodule Spotter.MixProject do
 
   defp description do
     """
-    Middleware for message queue-based microservices
+    Package for implementing AMQP workers and middlewares
     """
   end
 
