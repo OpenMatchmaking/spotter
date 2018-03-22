@@ -16,7 +16,7 @@ defmodule Spotter.AMQP.Connection do
       @worker_config Keyword.delete(opts, :otp_app)
       @inline_options opts
 
-      def connect(timeout \\ 10_000) do
+      def connect(timeout \\ 60_000) do
         case Helper.open_connection(config()) do
           {:ok, connection} ->
             # Get notifications when the connection goes down

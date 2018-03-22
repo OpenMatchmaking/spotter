@@ -2,72 +2,91 @@ defmodule Spotter.Worker do
   @moduledoc """
   Base worker module that works with AMQP.
   """
+  @doc """
+  Create a link to worker process. Used in supervisors.
+  """
+  @callback start_link :: Supervisor.on_start
+
+  @doc """
+  Get queue status.
+  """
+  @callback status :: {:ok, %{consumer_count: integer, message_count: integer, queue: String.t()}} | {:error, String.t()}
+
   @doc false
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
-
       use GenServer
-      use AMQP
+      use Confex, Keyword.delete(opts, :connection)
       require Logger
 
-      @defaults [
-        username: {:system, "SPOTTER_AMQP_USERNAME", "guest"},
-        password: {:system, "SPOTTER_AMQP_PASSWORD", "guest"},
-        host: {:system, "SPOTTER_AMQP_HOST", "localhost"},
-        port: {:system, :integer, "SPOTTER_AMQP_PORT", 5672},
-        virtual_host: {:system, "SPOTTER_AMQP_VHOST", "/"},
-        connection_timeout: {:system, :integer, "SPOTTER_AMQP_TIMEOUT", 60_000},
-      ]
+      @connection Keyword.get(opts, :connection) || @module_config[:connection]
+      @channel_name String.to_atom("#{__MODULE__}.Channel")
 
-      # Client callbacks
-
-      def start_link(opts) do
-        GenServer.start_link(__MODULE__, opts, [])
+      unless @connection do
+        raise "You need to implement connection module and pass it in :connection option."
       end
 
-      # Server callbacks
-
-      defp open_connection(opts) do
-        case AMQP.Connection.open(opts) do
-          {:ok, connection} ->
-            {:ok, connection}
-          {:error, reason} ->
-            Logger.error "An error occurred during connection establishing: #{inspect reason}"
-            :timer.sleep(@defaults[:connection_timeout])
-            open_connection(opts)
-        end
-      end
-
-      @doc """
-      Post-initialization method for a worker. Specify here exchanges, queues and so on.
-      """
-      def configure(connection, _config) do
-        {:ok, []}
+      def start_link() do
+        GenServer.start_link(__MODULE__, config(), name: __MODULE__)
       end
 
       def init(opts) do
-        Process.flag(:trap_exit, true)
+        case Process.whereis(@connection) do
+          nil ->
+            # Connection doesn't exist, lets fail to recover later
+            {:error, :noconn}
+          _ ->
+            @connection.spawn_channel(@channel_name)
+            @connection.configure_channel(@channel_name, opts)
 
-        config = @defaults
-          |> Keyword.merge(opts)
-          |> Confex.Resolver.resolve!
+            channel = get_channel()
+            |> configure(opts)
 
-        {:ok, connection} = open_connection(config)
-        Process.monitor(connection.pid)
-
-        {:ok, meta} = configure(connection, config)
-        {:ok, [connection: connection, config: config, meta: meta]}
+            {:ok, channel}
+        end
       end
 
-      def handle_info({:DOWN, _monitor_ref, :process, _pid, _reason}, state) do
-        old_connection = state[:connection]
-        Process.demonitor(old_connection.pid)
-
-        {:ok, connection} = open_connection(state[:config])
-        {:noreply, [connection: connection, config: state[:config], meta: state[:meta]]}
+      def configure(channel, _opts) do
+        channel
       end
 
-      defoverridable [configure: 2]
+      def validate_config!(config) do
+        config
+      end
+
+      defp get_channel() do
+        channel = @channel_name
+        |> @connection.get_channel
+      end
+
+      def status() do
+        GenServer.call(__MODULE__, :status)
+      end
+
+      def channel_config() do
+        RBMQ.Connection.Channel.get_config(@channel_name)
+      end
+
+      def handle_call(:status, _from, channel) do
+        safe_run fn(_) ->
+          {:reply, AMQP.Queue.status(channel, channel_config()[:queue][:name]), channel}
+        end
+      end
+
+      def safe_run(fun) do
+        channel = get_channel()
+
+        case !is_nil(channel) && Process.alive?(channel.pid) do
+          true ->
+            fun.(channel)
+          _ ->
+            Logger.warn("[GenQueue] Channel #{inspect @channel_name} is dead, waiting till it gets restarted")
+            :timer.sleep(3_000)
+            safe_run(fun)
+        end
+      end
+
+      defoverridable [configure: 2, validate_config!: 1]
     end
   end
 end

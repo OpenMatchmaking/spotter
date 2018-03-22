@@ -147,7 +147,7 @@ defmodule Spotter.AMQP.Connection.Channel do
 
     {:reply, :ok, [
       channel: channel,
-      config: Keyword.merge(state[:config], config),
+      config: Keyword.merge(state[:config], config || []),
       connection: state[:connection]
     ]}
   end

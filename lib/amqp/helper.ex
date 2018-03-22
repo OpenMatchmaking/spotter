@@ -9,7 +9,7 @@ defmodule Spotter.AMQP.Connection.Helper do
 
   # Default settings for AMQP connection.
   @defaults [
-    username: {:system, "SPOTTER_AMQP_USER", "guest"},
+    username: {:system, "SPOTTER_AMQP_USERNAME", "guest"},
     password: {:system, "SPOTTER_AMQP_PASSWORD", "guest"},
     host: {:system, "SPOTTER_AMQP_HOST", "localhost"},
     port: {:system, :integer, "SPOTTER_AMQP_PORT", 5672},
@@ -49,15 +49,14 @@ defmodule Spotter.AMQP.Connection.Helper do
   @doc """
   Same as `open_connection!/1`, but returns {:ok, connection} or {:error, reason} tuples.
   """
-  def open_connection(connection_opts) do
+  def open_connection(opts) do
+    connection_opts = @defaults
+    |> Keyword.merge(opts || [])
+    |> env
+
     Logger.debug "Establishing new AMQP connection, with opts: #{inspect connection_opts}"
 
-    connection = @defaults
-    |> Keyword.merge(connection_opts)
-    |> env
-    |> Connection.open
-
-    case connection do
+    case Connection.open(connection_opts) do
       {:ok, %Connection{}} = res ->
         res
       {:error, :not_allowed} ->
@@ -203,6 +202,6 @@ defmodule Spotter.AMQP.Connection.Helper do
   end
 
   defp env(var) do
-    Confex.resolve_env!(var)
+    Confex.Resolver.resolve!(var)
   end
 end
