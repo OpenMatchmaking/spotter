@@ -113,7 +113,7 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
   Pay attention to this `consume/5` method. I recommend to send async messages to GenServer that will be consumed later, so that when the message is processing a single thread wouldn't be blocked.  
   After that just specify this `CustomWorker` in your OTP application with supervisor and invoke `GenServer.start_link/3`.
 
-  3. Add the connection with the worker to yor application
+  3. Add the connection with the worker to your application
 
   ```elixir
   defmodule CustomApp do
