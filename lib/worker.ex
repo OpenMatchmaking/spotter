@@ -64,7 +64,7 @@ defmodule Spotter.Worker do
       end
 
       def channel_config() do
-        RBMQ.Connection.Channel.get_config(@channel_name)
+        Spotter.AMQP.Connection.Channel.get_config(@channel_name)
       end
 
       def handle_call(:status, _from, channel) do
