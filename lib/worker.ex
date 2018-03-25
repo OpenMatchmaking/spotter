@@ -27,7 +27,7 @@ defmodule Spotter.Worker do
       end
 
       def start_link() do
-        GenServer.start_link(__MODULE__, config(), name: __MODULE__)
+        GenServer.start_link(__MODULE__, config())
       end
 
       def init(opts) do
