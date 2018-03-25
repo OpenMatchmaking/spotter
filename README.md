@@ -58,6 +58,7 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
   ```elixir
   defmodule CustomWorker do
     use Spotter.Worker,
+    otp_app: :custom_app,
     connection: AppAMQPConnection
 
     # Also you could specify here the `queue` \ `exchange` \ `qos` options
@@ -105,7 +106,9 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
 
       # And don't forget to ack a processed message. Or perhaps even use nack 
       # when it will be neceessary.
-      AMQP.Basic.ack(channel, tag)
+      # We will wrap the call into `safe_run(func)` call, so that it will retry 
+      # the executed code when the used channel is failed
+      safe_run(fn(channel) -> AMQP.Basic.ack(channel, tag) end)
     end
   end
   ```
@@ -121,12 +124,18 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
 
     # For more detail see: http://elixir-lang.org/docs/stable/elixir/Application.html
     def start(_type, _args) do
-      import Supervisor.Spec, warn: false
-
       # Define workers and child supervisors to be supervised
       children = [
-        supervisor(AppAMQPConnection, []),
-        worker(CustomWorker, []),
+        %{
+          id: AppAMQPConnection, 
+          start: {AppAMQPConnection, :start_link, []},
+          restart: :transient
+        },
+        %{
+          id: CustomWorker, 
+          start: {CustomWorker, :start_link, []},
+          restart: :transient
+        }
       ]
 
       opts = [strategy: :one_for_one, name: CustomAppSupervisor]
