@@ -14,7 +14,7 @@ The package can be installed via adding the `spotter` dependency to your list of
 
   ```elixir
   def deps do
-    [{:spotter, "~> 0.2.2"}]
+    [{:spotter, "~> 0.3.0"}]
   end
   ```
 
@@ -75,7 +75,8 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
     ])
 
     # Specify here the queue that you want to use
-    def configure(channel, _config) do
+    # `opts` will contain options (as a Map) that were specified in child_spec for supervisor 
+    def configure(channel, _opts) do
       :ok = AMQP.Exchange.direct(channel, @exchange, durable: true)
 
       # An initial point where the worker do required stuff
@@ -89,13 +90,16 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
       # Specify a consumer here
       {:ok, _} = AMQP.Basic.consume(channel, @queue_validate)
 
-      # And dont forget to return the channel
-      {:ok, channel}
+      # You must return here the tuple, where the first element is `:ok` atom, and the
+      # second element whill be any type what you would like. The second element will
+      # be set for the GenServer state, so that you can get an access to it via the
+      # `state[:meta]` expression
+      {:ok, [queue_request: queue_request, queue_forward: queue_forward]}
     end
 
     # Invoked when a message successfully consumed
     def handle_info({:basic_deliver, payload, %{delivery_tag: tag, reply_to: reply_to, headers: headers}}, state) do
-      channel = state[:meta][:channel]
+      channel = state[:channel]
       spawn fn -> consume(channel, tag, reply_to, headers, payload) end
       {:noreply, state}
     end

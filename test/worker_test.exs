@@ -72,12 +72,12 @@ defmodule SpotterWorkerTest do
       :ok = AMQP.Basic.qos(channel, prefetch_count: 1)
       {:ok, _} = AMQP.Basic.consume(channel, @queue_request)
 
-      channel
+      {:ok, []}
     end
 
     # Handle the trapped exit call
     def handle_info({:EXIT, _from, reason}, state) do
-      cleanup(reason, state)
+      cleanup(reason, state[:channel])
       {:stop, reason, state}
     end
 
@@ -97,10 +97,11 @@ defmodule SpotterWorkerTest do
     end
 
     # Invoked when a message successfully consumed
-    def handle_info({:basic_deliver, payload, %{delivery_tag: tag, reply_to: reply_to, headers: headers}}, channel) do
+    def handle_info({:basic_deliver, payload, %{delivery_tag: tag, reply_to: reply_to, headers: headers}}, state) do
+      channel = state[:channel]
       message_headers = Enum.into(Enum.map(headers, fn({key, _, value}) -> {key, value} end), %{})
       spawn fn -> consume(channel, tag, reply_to, message_headers, payload) end
-      {:noreply, channel}
+      {:noreply, state}
     end
 
     def terminate(reason, state) do

@@ -27,7 +27,11 @@ defmodule Spotter.Worker do
       end
 
       def start_link() do
-        GenServer.start_link(__MODULE__, config())
+        GenServer.start_link(__MODULE__, %{config: config()})
+      end
+
+      def start_link(opts) do
+        GenServer.start_link(__MODULE__, %{config: config(), opts: opts})
       end
 
       def init(opts) do
@@ -37,17 +41,15 @@ defmodule Spotter.Worker do
             {:error, :noconn}
           _ ->
             @connection.spawn_channel(@channel_name)
-            @connection.configure_channel(@channel_name, opts)
+            @connection.configure_channel(@channel_name, opts[:config])
 
             channel = get_channel()
-            |> configure(opts)
-
-            {:ok, channel}
+            {:ok, [channel: channel, meta: configure(channel, opts[:opts])]}
         end
       end
 
-      def configure(channel, _opts) do
-        channel
+      def configure(_channel, _opts) do
+        {:ok, []}
       end
 
       def validate_config!(config) do
@@ -67,9 +69,9 @@ defmodule Spotter.Worker do
         Spotter.AMQP.Connection.Channel.get_config(@channel_name)
       end
 
-      def handle_call(:status, _from, channel) do
+      def handle_call(:status, _from, state) do
         safe_run fn(_) ->
-          {:reply, AMQP.Queue.status(channel, channel_config()[:queue][:name]), channel}
+          {:reply, AMQP.Queue.status(state[:channel], channel_config()[:queue][:name]), state}
         end
       end
 
