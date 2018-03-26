@@ -90,7 +90,10 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
       # Specify a consumer here
       {:ok, _} = AMQP.Basic.consume(channel, @queue_validate)
 
-      # And return all of created queues here for further using
+      # You must return here the tuple, where the first element is `:ok` atom, and the
+      # second element whill be any type what you would like. The second element will
+      # be set for the GenServer state, so that you can get an access to it via the
+      # `state[:meta]` expression
       {:ok, [queue_request: queue_request, queue_forward: queue_forward]}
     end
 
