@@ -75,7 +75,8 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
     ])
 
     # Specify here the queue that you want to use
-    def configure(channel, _config) do
+    # `opts` will contain options (as a Map) that were specified in child_spec for supervisor 
+    def configure(channel, _opts) do
       :ok = AMQP.Exchange.direct(channel, @exchange, durable: true)
 
       # An initial point where the worker do required stuff
@@ -89,13 +90,13 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
       # Specify a consumer here
       {:ok, _} = AMQP.Basic.consume(channel, @queue_validate)
 
-      # And dont forget to return the channel
-      {:ok, channel}
+      # And return all of created queues here for further using
+      {:ok, [queue_request: queue_request, queue_forward: queue_forward]}
     end
 
     # Invoked when a message successfully consumed
     def handle_info({:basic_deliver, payload, %{delivery_tag: tag, reply_to: reply_to, headers: headers}}, state) do
-      channel = state[:meta][:channel]
+      channel = state[:channel]
       spawn fn -> consume(channel, tag, reply_to, headers, payload) end
       {:noreply, state}
     end
