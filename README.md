@@ -14,7 +14,7 @@ The package can be installed via adding the `spotter` dependency to your list of
 
   ```elixir
   def deps do
-    [{:spotter, "~> 0.2.2"}]
+    [{:spotter, "~> 0.3.0"}]
   end
   ```
 
