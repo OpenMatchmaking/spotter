@@ -27,7 +27,7 @@ defmodule Spotter.Worker do
       end
 
       def start_link() do
-        GenServer.start_link(__MODULE__, %{config: config()})
+        GenServer.start_link(__MODULE__, %{config: config(), opts: []})
       end
 
       def start_link(opts) do
@@ -44,7 +44,8 @@ defmodule Spotter.Worker do
             @connection.configure_channel(@channel_name, opts[:config])
 
             channel = get_channel()
-            {:ok, [channel: channel, meta: configure(channel, opts[:opts])]}
+            {:ok, custom} = configure(channel, opts[:opts])
+            {:ok, [channel: channel, meta: custom]}
         end
       end
 
