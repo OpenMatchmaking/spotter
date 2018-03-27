@@ -58,7 +58,9 @@ defmodule SpotterWorkerTest do
       {"api.matchmaking.search", ["get", "post"], CustomEndpoint},
     ])
 
-    def configure(channel, _config) do
+    def configure(channel_name, _config) do
+      channel = get_channel(channel_name)
+
       :ok = AMQP.Exchange.direct(channel, @exchange, durable: true, auto_delete: true)
 
       # An initial point where the worker do required stuff

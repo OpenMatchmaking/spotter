@@ -47,12 +47,12 @@ defmodule Spotter.Worker do
             @connection.configure_channel(channel_name, opts[:config])
 
             channel = get_channel(channel_name)
-            {:ok, custom} = configure(channel, opts[:opts])
+            {:ok, custom} = configure(channel_name, opts[:opts])
             {:ok, [channel: channel, channel_name: channel_name, meta: custom]}
         end
       end
 
-      def configure(_channel, _opts) do
+      def configure(_channel_name, _opts) do
         {:ok, []}
       end
 
@@ -60,7 +60,7 @@ defmodule Spotter.Worker do
         config
       end
 
-      defp get_channel(channel_name) do
+      def get_channel(channel_name) do
         @connection.get_channel(channel_name)
       end
 
@@ -82,14 +82,16 @@ defmodule Spotter.Worker do
         )
       end
 
-      def safe_run(channel, fun) do
+      def safe_run(channel_name, fun) do
+        channel = get_channel(channel_name)
+
         case !is_nil(channel) && Process.alive?(channel.pid) do
           true ->
             fun.(channel)
           _ ->
             Logger.warn("[GenQueue] Channel #{inspect channel} is dead, waiting till it gets restarted")
             :timer.sleep(3_000)
-            safe_run(channel, fun)
+            safe_run(channel_name, fun)
         end
       end
 
