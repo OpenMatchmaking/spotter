@@ -14,7 +14,7 @@ The package can be installed via adding the `spotter` dependency to your list of
 
   ```elixir
   def deps do
-    [{:spotter, "~> 0.3.0"}]
+    [{:spotter, "~> 0.4.0"}]
   end
   ```
 
@@ -110,9 +110,9 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
 
       # And don't forget to ack a processed message. Or perhaps even use nack 
       # when it will be neceessary.
-      # We will wrap the call into `safe_run(func)` call, so that it will retry 
+      # We will wrap the call into `safe_run(channel, func)` call, so that it will retry 
       # the executed code when the used channel is failed
-      safe_run(fn(channel) -> AMQP.Basic.ack(channel, tag) end)
+      safe_run(channel, fn(channel) -> AMQP.Basic.ack(channel, tag) end)
     end
   end
   ```

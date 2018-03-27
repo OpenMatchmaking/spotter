@@ -35,17 +35,20 @@ defmodule Spotter.Worker do
       end
 
       def init(opts) do
+        {channel_name, updated_opts} = Keyword.pop(opts[:opts], :channel_name, @channel_name)
+        opts = Map.put(opts, :opts, updated_opts)
+
         case Process.whereis(@connection) do
           nil ->
             # Connection doesn't exist, lets fail to recover later
             {:error, :noconn}
           _ ->
-            @connection.spawn_channel(@channel_name)
-            @connection.configure_channel(@channel_name, opts[:config])
+            @connection.spawn_channel(channel_name)
+            @connection.configure_channel(channel_name, opts[:config])
 
-            channel = get_channel()
+            channel = get_channel(channel_name)
             {:ok, custom} = configure(channel, opts[:opts])
-            {:ok, [channel: channel, meta: custom]}
+            {:ok, [channel: channel, channel_name: channel_name, meta: custom]}
         end
       end
 
@@ -57,35 +60,36 @@ defmodule Spotter.Worker do
         config
       end
 
-      defp get_channel() do
-        channel = @channel_name
-        |> @connection.get_channel
+      defp get_channel(channel_name) do
+        @connection.get_channel(channel_name)
       end
 
       def status() do
         GenServer.call(__MODULE__, :status)
       end
 
-      def channel_config() do
-        Spotter.AMQP.Connection.Channel.get_config(@channel_name)
+      def channel_config(channel_name) do
+        Spotter.AMQP.Connection.Channel.get_config(channel_name)
       end
 
       def handle_call(:status, _from, state) do
-        safe_run fn(_) ->
-          {:reply, AMQP.Queue.status(state[:channel], channel_config()[:queue][:name]), state}
-        end
+        safe_run(
+          state[:channel],
+          fn(channel) ->
+            config = channel_config(state[:channel_name])
+            {:reply, AMQP.Queue.status(channel, config[:queue][:name]), state}
+          end
+        )
       end
 
-      def safe_run(fun) do
-        channel = get_channel()
-
+      def safe_run(channel, fun) do
         case !is_nil(channel) && Process.alive?(channel.pid) do
           true ->
             fun.(channel)
           _ ->
-            Logger.warn("[GenQueue] Channel #{inspect @channel_name} is dead, waiting till it gets restarted")
+            Logger.warn("[GenQueue] Channel #{inspect channel} is dead, waiting till it gets restarted")
             :timer.sleep(3_000)
-            safe_run(fun)
+            safe_run(channel, fun)
         end
       end
 
