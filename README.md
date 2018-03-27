@@ -14,7 +14,7 @@ The package can be installed via adding the `spotter` dependency to your list of
 
   ```elixir
   def deps do
-    [{:spotter, "~> 0.4.0"}]
+    [{:spotter, "~> 0.4.1"}]
   end
   ```
 
@@ -76,7 +76,10 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
 
     # Specify here the queue that you want to use
     # `opts` will contain options (as a Map) that were specified in child_spec for supervisor 
-    def configure(channel, _opts) do
+    def configure(channel_name, _opts) do
+      # For getting an access to the channel by its name use `get_channel(channel_name)` function
+      channel = get_channel(channel_name)
+    
       :ok = AMQP.Exchange.direct(channel, @exchange, durable: true)
 
       # An initial point where the worker do required stuff
@@ -99,20 +102,20 @@ Any of those arguments (that were mentioned in the documentation) can be specifi
 
     # Invoked when a message successfully consumed
     def handle_info({:basic_deliver, payload, %{delivery_tag: tag, reply_to: reply_to, headers: headers}}, state) do
-      channel = state[:channel]
-      spawn fn -> consume(channel, tag, reply_to, headers, payload) end
+      channel_name = state[:channel_name]
+      spawn fn -> consume(channel_name, tag, reply_to, headers, payload) end
       {:noreply, state}
     end
 
     # Processing a consumed message
-    defp consume(channel, tag, reply_to, headers, payload) do
+    defp consume(channel_name, tag, reply_to, headers, payload) do
       # Do some usefull stuff here ...
 
       # And don't forget to ack a processed message. Or perhaps even use nack 
       # when it will be neceessary.
-      # We will wrap the call into `safe_run(channel, func)` call, so that it will retry 
+      # We will wrap the call into `safe_run(channel_name, func)` call, so that it will retry 
       # the executed code when the used channel is failed
-      safe_run(channel, fn(channel) -> AMQP.Basic.ack(channel, tag) end)
+      safe_run(channel_name, fn(channel) -> AMQP.Basic.ack(channel, tag) end)
     end
   end
   ```
