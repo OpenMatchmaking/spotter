@@ -40,7 +40,7 @@ By default Spotter reads environment configuration and trying to establish a AMQ
 Also it is possible to specify other connections that can be found in [AMQP client docs](https://hexdocs.pm/amqp/AMQP.Connection.html#open/1). 
 Any of those arguments (that were mentioned in the documentation) can be specified in `GenServer.start_link/3` function.
 
-# Examplee
+# Example
 
   1. Define a connection module which is going be used later 
 
