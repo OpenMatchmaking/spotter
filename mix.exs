@@ -1,7 +1,7 @@
 defmodule Spotter.MixProject do
   use Mix.Project
 
-  @version "0.4.1"
+  @version "0.5.0"
 
   def project do
     [
@@ -29,10 +29,11 @@ defmodule Spotter.MixProject do
 
   defp deps do
     [
-      {:confex, "~> 3.3.0"},
-      {:amqp, "~> 1.0.2"},
-      {:earmark, "~> 1.2.0", only: :dev},
-      {:ex_doc, "~> 0.18", only: :dev}
+      {:confex, "~> 3.3.1"},
+      {:amqp, "~> 1.0"},
+      {:earmark, "~> 1.2.6", only: :dev},
+      {:ex_doc, "~> 0.19.1", only: :dev},
+      {:ranch_proxy_protocol, "~> 2.0", override: true}
     ]
   end
 
