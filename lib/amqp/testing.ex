@@ -35,61 +35,44 @@ defmodule Spotter.Testing.AmqpBlockingClient do
     AMQP.Connection.close(connection)
   end
 
-  @doc """
-  Creates a queue with binding to the certain exchange and specified QoS rules.
-  """
   defp configure(channel, channel_opts) do
-    channel
-      |> configure_qos(channel_opts[:qos])
-      |> configure_queue(channel_opts[:queue])
-      |> configure_exchange(channel_opts[:queue], channel_opts[:exchange])
+      channel = configure_qos(channel, channel_opts[:qos])
+      {channel, queue_opts} = configure_queue(channel, channel_opts[:queue])
+      channel_opts = Keyword.merge(channel_opts, [queue: queue_opts])
+      channel = configure_exchange(channel, channel_opts[:queue], channel_opts[:exchange])
+      channel
   end
 
-  @doc """
-  Confgures a QoS for the channel.
-  """
   defp configure_qos(channel, nil) do
     channel
   end
 
-  @doc """
-  Configures QoS for the channel.
-  """
   defp configure_qos(channel, qos_opts) do
     Helper.set_channel_qos(channel, qos_opts)
     channel
   end
 
-  @doc """
-  Creates a new queue during the session.
-  """
   defp configure_queue(channel, nil) do
     channel
   end
 
-  @doc """
-  Creates a new queue during the session.
-  """
   defp configure_queue(channel, queue_opts) do
     {:ok, queue} = AMQP.Queue.declare(channel, env(queue_opts[:name]), env(queue_opts))
 
-    if queue_opts[:name] == "" and queue_opts[:routing_key] == "" do
-      queue_opts = Keyword.merge(queue_opts, [name:  queue[:queue], routing_key: queue[:queue]])
-    end
+    queue_opts =
+      if queue_opts[:name] == "" and queue_opts[:routing_key] == "" do
+        Keyword.merge(queue_opts, [name:  queue[:queue], routing_key: queue[:queue]])
+      else
+        queue_opts
+      end
 
-    channel
+    {channel, queue_opts}
   end
 
-  @doc """
-  Configures the exchange and bind queue to it.
-  """
   defp configure_exchange(channel, queue_opts, exchange_opts) when is_nil(queue_opts) or is_nil(exchange_opts) do
     channel
   end
 
-  @doc """
-  Configures the exchange and bind queue to it.
-  """
   defp configure_exchange(channel, queue_opts, exchange_opts) do
     Helper.declare_exchange(channel, exchange_opts[:name], exchange_opts[:type], exchange_opts)
     Helper.bind_queue(channel, queue_opts[:name], exchange_opts[:name], routing_key: queue_opts[:routing_key])
@@ -125,9 +108,6 @@ defmodule Spotter.Testing.AmqpBlockingClient do
 
   # Internal stuff
 
-  @doc """
-  Sends the message into the certain queue.
-  """
   defp send_message(channel, routing_key, data, opts) do
     exchange_request = Keyword.get(opts, :exchange_request, "")
     queue_request = Keyword.get(opts, :queue_request, "")
@@ -140,9 +120,6 @@ defmodule Spotter.Testing.AmqpBlockingClient do
     AMQP.Basic.publish(channel, exchange_request, queue_request, data, publish_options)
   end
 
-  @doc """
-  Extracts the message from the certain queue and returns to the client.
-  """
   defp consume_response(channel, queue_name, timeout, attempts) do
     {payload, meta} = receive_message(channel, queue_name, timeout, attempts)
 
@@ -153,9 +130,6 @@ defmodule Spotter.Testing.AmqpBlockingClient do
     {payload, meta}
   end
 
-  @doc """
-  Extracts the message from the AMQP queue with retries.
-  """
   defp receive_message(channel, queue_name, timeout, attempts) do
     case AMQP.Basic.get(channel, queue_name) do
       {:ok, message, meta} ->
