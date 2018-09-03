@@ -9,7 +9,7 @@ defmodule SpotterWorkerTest do
   @custom_amqp_opts [
     username: "user",
     password: "password",
-    host: "localhost",
+    host: "rabbitmq",
     port: 5672,
     virtual_host: "/"
   ]
@@ -178,7 +178,7 @@ defmodule SpotterWorkerTest do
                              headers: [{"path", :longstr, "api.matchmaking.search"},
                                        {"permissions", :longstr, "get;post"}]
     )
-    :timer.sleep(100)
+    :timer.sleep(200)
     {:ok, payload, %{delivery_tag: tag}} = AMQP.Basic.get(channel, @generic_queue_forward)
     assert payload == "DATA"
 
@@ -215,7 +215,7 @@ defmodule SpotterWorkerTest do
                              headers: [{"path", :longstr, "api.matchmaking.search"},
                                        {"permissions", :longstr, "get;post"}]
     )
-    :timer.sleep(100)
+    :timer.sleep(200)
     {:ok, payload, %{delivery_tag: tag}} = AMQP.Basic.get(channel, queue[:queue])
     assert payload == "VALIDATION_ERROR"
 
@@ -234,7 +234,7 @@ defmodule SpotterWorkerTest do
                              headers: [{"path", :longstr, "api.matchmaking.search"},
                                        {"permissions", :longstr, ""}]
     )
-    :timer.sleep(100)
+    :timer.sleep(200)
     {:ok, payload, %{delivery_tag: tag}} = AMQP.Basic.get(channel, queue[:queue])
     assert payload == "NO_PERMISSIONS"
 
