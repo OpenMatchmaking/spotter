@@ -8,8 +8,8 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   @doc """
   Initializes a new blocking GenServer instance.
   """
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts)
+  def start_link(opts, name \\ __MODULE__) do
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   @doc """
@@ -22,11 +22,11 @@ defmodule Spotter.Testing.AmqpBlockingClient do
     {:ok, %{
       connection: connection,
       channel: channel,
-      channel_opts: %{
+      channel_opts: [
         queue: Keyword.get(opts, :queue, []),
         exchange: Keyword.get(opts, :exchange, []),
         qos: Keyword.get(opts, :qos, [])
-      }
+      ]
     }}
   end
 
@@ -86,6 +86,13 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   # Public API
 
   @doc """
+  Stop the client and close the existing connection.
+  """
+  def stop(pid) do
+    GenServer.stop(pid)
+  end
+
+  @doc """
   Sends a new message without waiting for a response.
   """
   def send(pid, data, opts, call_timeout \\ 5000) do
@@ -106,12 +113,18 @@ defmodule Spotter.Testing.AmqpBlockingClient do
     GenServer.call(pid, {:consume_response, queue, timeout, attempts}, call_timeout)
   end
 
+  @doc """
+  Initializes QoS, a queue and an exchanges for the channel.
+  """
+  def configure_channel(pid, channel_opts, call_timeout \\ 500) do
+    GenServer.call(pid, {:configure_channel, channel_opts}, call_timeout)
+  end
+
   # Internal stuff
 
   defp send_message(channel, routing_key, data, opts) do
     exchange_request = Keyword.get(opts, :exchange_request, "")
     queue_request = Keyword.get(opts, :queue_request, "")
-
     publish_options = Keyword.merge(opts, [
       persistent: Keyword.get(opts, :persistent, true),
       reply_to: routing_key,
@@ -151,8 +164,8 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   def handle_call({:send_and_wait, data, opts, timeout, attempts}, _from, state) do
     channel = state[:channel]
     channel_opts = state[:channel_opts]
-    queue_name = Keyword.get(channel_opts[:queue], :name, :undefined)
-    routing_key = Keyword.get(channel_opts[:queue], :routing_key, :undefined)
+    queue_name = Keyword.get(channel_opts[:queue] || [], :name, :undefined)
+    routing_key = Keyword.get(channel_opts[:queue] || [], :routing_key, :undefined)
 
     configure(channel, channel_opts)
     send_message(channel, routing_key, data, opts)
@@ -166,12 +179,13 @@ defmodule Spotter.Testing.AmqpBlockingClient do
     {:reply, consume_response(state[:channel], queue, timeout, attempts), state}
   end
 
+  def handle_call({:configure_channel, channel_opts}, _from, state) do
+    configure(state[:channel], channel_opts)
+    {:reply, :ok, state}
+  end
+
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
     deinit(state[:connection], state[:channel])
     {:noreply, state}
-  end
-
-  def terminate(_reason, state) do
-    deinit(state[:connection], state[:channel])
   end
 end
