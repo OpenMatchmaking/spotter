@@ -17,7 +17,7 @@ defmodule Spotter.MixProject do
 
   def application do
     [
-      extra_applications: [:amqp, :confex]
+      extra_applications: [:amqp, :confex, :logger]
     ]
   end
 
@@ -30,10 +30,9 @@ defmodule Spotter.MixProject do
   defp deps do
     [
       {:confex, "~> 3.3.1"},
-      {:amqp, "~> 1.0"},
+      {:amqp, "~> 1.1"},
       {:earmark, "~> 1.2.6", only: :dev},
       {:ex_doc, "~> 0.19.1", only: :dev},
-      {:ranch_proxy_protocol, "~> 2.0", override: true}
     ]
   end
 
