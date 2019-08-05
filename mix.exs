@@ -30,7 +30,7 @@ defmodule Spotter.MixProject do
   defp deps do
     [
       {:confex, "~> 3.3.1"},
-      {:amqp, "~> 1.1"},
+      {:amqp, "~> 1.2.2"},
       {:earmark, "~> 1.2.6", only: :dev},
       {:ex_doc, "~> 0.19.1", only: :dev},
     ]
