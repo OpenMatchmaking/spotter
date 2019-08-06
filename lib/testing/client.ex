@@ -103,7 +103,11 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   Sends a new message and wait for result.
   """
   def send_and_wait(pid, data, opts, timeout \\ 1000, attempts \\ 5, call_timeout \\ 5000) do
-    GenServer.call(pid, {:send_and_wait, data, opts, timeout, attempts}, call_timeout)
+    try do
+      GenServer.call(pid, {:send_and_wait, data, opts, timeout, attempts}, call_timeout)
+    catch
+      :exit, _reason -> {:empty, nil}
+    end
   end
 
   @doc """
@@ -126,15 +130,16 @@ defmodule Spotter.Testing.AmqpBlockingClient do
 
   # Internal stuff
 
-  defp send_message(channel, routing_key, data, opts) do
-    exchange_request = Keyword.get(opts, :exchange_request, "")
-    queue_request = Keyword.get(opts, :queue_request, "")
+  defp send_message(channel, data, opts) do
+    request_exchange = Keyword.get(opts, :request_exchange, "")
+    request_routing_key = Keyword.get(opts, :request_routing_key, "")
+    response_queue = Keyword.get(opts, :response_queue, "")
     publish_options = Keyword.merge(opts, [
       persistent: Keyword.get(opts, :persistent, true),
-      reply_to: routing_key,
+      reply_to: response_queue,
       content_type: Keyword.get(opts, :content_type, "application/json")
     ])
-    AMQP.Basic.publish(channel, exchange_request, queue_request, data, publish_options)
+    AMQP.Basic.publish(channel, request_exchange, request_routing_key, data, publish_options)
   end
 
   defp consume_response(channel, queue_name, timeout, attempts) do
@@ -162,19 +167,22 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   # Private API
 
   def handle_call({:send, data, opts}, _from, state) do
-    {:reply, send_message(state[:channel], :undefined, data, opts), state}
+    {:reply, send_message(state[:channel], data, opts), state}
   end
 
   def handle_call({:send_and_wait, data, opts, timeout, attempts}, _from, state) do
     channel = state[:channel]
     channel_opts = state[:channel_opts]
-    queue_name = Keyword.get(channel_opts[:queue] || [], :name, :undefined)
-    routing_key = Keyword.get(channel_opts[:queue] || [], :routing_key, :undefined)
+    response_queue = Keyword.get(opts, :response_queue, "")
 
     configure(channel, channel_opts)
-    send_message(channel, routing_key, data, opts)
-    response = consume_response(state[:channel], queue_name, timeout, attempts)
-    AMQP.Queue.delete(channel, queue_name)
+    send_message(channel, data, opts)
+    response = consume_response(state[:channel], response_queue, timeout, attempts)
+
+    if response_queue != "" do
+      AMQP.Queue.delete(channel, response_queue)
+    end
+
     {:reply, response, state}
   end
 
