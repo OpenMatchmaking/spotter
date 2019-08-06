@@ -34,7 +34,7 @@ defmodule SpotterTestingAmqpBlockingClientTest do
     {:ok, [client: pid]}
   end
 
-  test "A AMQP blocking client sends the message and consumes the message from the queue", state do
+  test "AMQP blocking client sends the message and consumes the message from the queue", state do
     client = state[:client]
     message = "test"
     AmqpBlockingClient.configure_channel(client, @custom_amqp_opts)
@@ -51,16 +51,15 @@ defmodule SpotterTestingAmqpBlockingClientTest do
     stop_supervised(client)
   end
 
-  test "A AMQP blocking client consumes the message from the queue and returns empty results", state do
+  test "AMQP blocking client consumes the message from the queue and returns empty results", state do
     client = state[:client]
-    message = "test"
     AmqpBlockingClient.configure_channel(client, @custom_amqp_opts)
 
     {:empty, nil} = AmqpBlockingClient.consume(client, @queue_name, 1, 100)
     stop_supervised(client)
   end
 
-  test "A AMQP blocking client sends the message and waits for the response", state do
+  test "AMQP blocking client sends the message and waits for the response", state do
     client = state[:client]
     message = "test"
 
@@ -70,6 +69,17 @@ defmodule SpotterTestingAmqpBlockingClientTest do
     )
     {response, _meta} = AmqpBlockingClient.send_and_wait(client, message, channel_options)
     assert response == message
+
+    stop_supervised(client)
+  end
+
+  test "AMQP blocking client receive {:empty, nil} by timeout for consuming messages", state do
+    client = state[:client]
+    AmqpBlockingClient.configure_channel(client, @custom_amqp_opts)
+
+    {response, meta} = AmqpBlockingClient.consume(client, @queue_name, 100, 1, 1)
+    assert response == :empty
+    assert meta == nil
 
     stop_supervised(client)
   end

@@ -110,7 +110,11 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   Returns the message from the certain queue if it exists.
   """
   def consume(pid, queue, timeout \\ 1000, attempts \\ 5, call_timeout \\ 500) do
-    GenServer.call(pid, {:consume_response, queue, timeout, attempts}, call_timeout)
+    try do
+      GenServer.call(pid, {:consume_response, queue, timeout, attempts}, call_timeout)
+    catch
+      :exit, _reason -> {:empty, nil}
+    end
   end
 
   @doc """
@@ -170,7 +174,6 @@ defmodule Spotter.Testing.AmqpBlockingClient do
     configure(channel, channel_opts)
     send_message(channel, routing_key, data, opts)
     response = consume_response(state[:channel], queue_name, timeout, attempts)
-
     AMQP.Queue.delete(channel, queue_name)
     {:reply, response, state}
   end
