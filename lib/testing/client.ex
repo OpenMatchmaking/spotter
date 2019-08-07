@@ -94,6 +94,30 @@ defmodule Spotter.Testing.AmqpBlockingClient do
 
   @doc """
   Sends a new message without waiting for a response.
+
+  The `data` parameter represents a payload, added to the message body.
+  The `ops` parameter represented as a keyword, that can contain keys:
+
+    * `:request_exchange` - Exchange key, through which will be published message.
+    * `:request_routing_key` - Routing key, used for pushing message to the certain queue.
+    * `:mandatory` - If set, returns an error if the broker can't route the message to a queue (default `false`);
+    * `:immediate` - If set, returns an error if the broker can't deliver te message to a consumer immediately (default `false`);
+    * `:content_type` - MIME Content type;
+    * `:content_encoding` - MIME Content encoding;
+    * `:headers` - Custom message headers;
+    * `:persistent` - Determines delivery mode. Messages marked as `persistent` and delivered to `durable` \
+                      queues will be logged to disk;
+    * `:correlation_id` - Application correlation identifier;
+    * `:priority` - Message priority, ranging from 0 to 9;
+    * `:reply_to` - Name of the reply queue;
+    * `:expiration` - How long the message is valid (in milliseconds);
+    * `:message_id` - Message identifier;
+    * `:timestamp` - Timestamp associated with this message (epoch time);
+    * `:type` - Message type (as a string);
+    * `:user_id` - User ID. Validated by RabbitMQ against the active connection user;
+    * `:app_id` - Publishing application ID.
+
+  The `call_timeout` parameter determines maximum amount time in milliseconds before exit from the method by timeout.
   """
   def send(pid, data, opts, call_timeout \\ 5000) do
     GenServer.call(pid, {:send, data, opts}, call_timeout)
@@ -101,20 +125,64 @@ defmodule Spotter.Testing.AmqpBlockingClient do
 
   @doc """
   Sends a new message and wait for result.
+
+  The `data` parameter represents a payload, added to the message body.
+  The `ops` parameter represented as a keyword, that can contain keys:
+
+    * `:request_exchange` - Exchange key, through which will be published message. Required.
+    * `:request_routing_key` - Routing key, used for pushing message to the certain queue. Required.
+    * `:response_queue` - The name of the queue which will be used for tracking responses. Required.
+    * `:channel_opts` - Keyword list which is used for creating response queue and linking it with the exchange. Required.
+    * `:mandatory` - If set, returns an error if the broker can't route the message to a queue (default `false`);
+    * `:immediate` - If set, returns an error if the broker can't deliver te message to a consumer immediately (default `false`);
+    * `:content_type` - MIME Content type;
+    * `:content_encoding` - MIME Content encoding;
+    * `:headers` - Custom message headers;
+    * `:persistent` - Determines delivery mode. Messages marked as `persistent` and delivered to `durable` \
+                      queues will be logged to disk;
+    * `:correlation_id` - Application correlation identifier;
+    * `:priority` - Message priority, ranging from 0 to 9;
+    * `:reply_to` - Name of the reply queue;
+    * `:expiration` - How long the message is valid (in milliseconds);
+    * `:message_id` - Message identifier;
+    * `:timestamp` - Timestamp associated with this message (epoch time);
+    * `:type` - Message type (as a string);
+    * `:user_id` - User ID. Validated by RabbitMQ against the active connection user;
+    * `:app_id` - Publishing application ID.
+
+  The `timeout` parameter determines amout of time before doing next attempt to extract the message.
+  The `attemps` parameter determines the general amount of attempts to extract the message.
+  The `call_timeout` parameter determines maximum amount time in milliseconds before exit from the method by timeout.
   """
   def send_and_wait(pid, data, opts, timeout \\ 1000, attempts \\ 5, call_timeout \\ 5000) do
-    GenServer.call(pid, {:send_and_wait, data, opts, timeout, attempts}, call_timeout)
+    try do
+      GenServer.call(pid, {:send_and_wait, data, opts, timeout, attempts}, call_timeout)
+    catch
+      :exit, _reason -> {:empty, nil}
+    end
   end
 
   @doc """
   Returns the message from the certain queue if it exists.
+
+  The `queue` parameter represents the name of the queue which will be used for tracking responses.
+  The `timeout` parameter determines amout of time before doing next attempt to extract the message.
+  The `attemps` parameter determines the general amount of attempts to extract the message.
+  The `call_timeout` parameter determines maximum amount time in milliseconds before exit from the method by timeout.
   """
   def consume(pid, queue, timeout \\ 1000, attempts \\ 5, call_timeout \\ 500) do
-    GenServer.call(pid, {:consume_response, queue, timeout, attempts}, call_timeout)
+    try do
+      GenServer.call(pid, {:consume_response, queue, timeout, attempts}, call_timeout)
+    catch
+      :exit, _reason -> {:empty, nil}
+    end
   end
 
   @doc """
   Initializes QoS, a queue and an exchanges for the channel.
+
+  The `channel_opts` parameters stores generic information about the response queue and the linked exchange.
+  The `call_timeout` parameter determines maximum amount time in milliseconds before exit from the method by timeout.
   """
   def configure_channel(pid, channel_opts, call_timeout \\ 500) do
     GenServer.call(pid, {:configure_channel, channel_opts}, call_timeout)
@@ -122,15 +190,16 @@ defmodule Spotter.Testing.AmqpBlockingClient do
 
   # Internal stuff
 
-  defp send_message(channel, routing_key, data, opts) do
-    exchange_request = Keyword.get(opts, :exchange_request, "")
-    queue_request = Keyword.get(opts, :queue_request, "")
+  defp send_message(channel, data, opts) do
+    request_exchange = Keyword.get(opts, :request_exchange, "")
+    request_routing_key = Keyword.get(opts, :request_routing_key, "")
+    response_queue = Keyword.get(opts, :response_queue, "")
     publish_options = Keyword.merge(opts, [
       persistent: Keyword.get(opts, :persistent, true),
-      reply_to: routing_key,
+      reply_to: response_queue,
       content_type: Keyword.get(opts, :content_type, "application/json")
     ])
-    AMQP.Basic.publish(channel, exchange_request, queue_request, data, publish_options)
+    AMQP.Basic.publish(channel, request_exchange, request_routing_key, data, publish_options)
   end
 
   defp consume_response(channel, queue_name, timeout, attempts) do
@@ -158,20 +227,22 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   # Private API
 
   def handle_call({:send, data, opts}, _from, state) do
-    {:reply, send_message(state[:channel], :undefined, data, opts), state}
+    {:reply, send_message(state[:channel], data, opts), state}
   end
 
   def handle_call({:send_and_wait, data, opts, timeout, attempts}, _from, state) do
     channel = state[:channel]
     channel_opts = state[:channel_opts]
-    queue_name = Keyword.get(channel_opts[:queue] || [], :name, :undefined)
-    routing_key = Keyword.get(channel_opts[:queue] || [], :routing_key, :undefined)
+    response_queue = Keyword.get(opts, :response_queue, "")
 
     configure(channel, channel_opts)
-    send_message(channel, routing_key, data, opts)
-    response = consume_response(state[:channel], queue_name, timeout, attempts)
+    send_message(channel, data, opts)
+    response = consume_response(state[:channel], response_queue, timeout, attempts)
 
-    AMQP.Queue.delete(channel, queue_name)
+    if response_queue != "" do
+      AMQP.Queue.delete(channel, response_queue)
+    end
+
     {:reply, response, state}
   end
 
