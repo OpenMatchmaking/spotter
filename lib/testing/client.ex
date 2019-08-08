@@ -96,7 +96,7 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   Sends a new message without waiting for a response.
 
   The `data` parameter represents a payload, added to the message body.
-  The `ops` parameter represented as a keyword, that can contain keys:
+  The `opts` parameter represented as a keyword, that can contain keys:
 
     * `:request_exchange` - Exchange key, through which will be published message.
     * `:request_routing_key` - Routing key, used for pushing message to the certain queue.
@@ -127,7 +127,7 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   Sends a new message and wait for result.
 
   The `data` parameter represents a payload, added to the message body.
-  The `ops` parameter represented as a keyword, that can contain keys:
+  The `opts` parameter represented as a keyword, that can contain keys:
 
     * `:request_exchange` - Exchange key, through which will be published message. Required.
     * `:request_routing_key` - Routing key, used for pushing message to the certain queue. Required.
@@ -170,7 +170,7 @@ defmodule Spotter.Testing.AmqpBlockingClient do
   The `attemps` parameter determines the general amount of attempts to extract the message.
   The `call_timeout` parameter determines maximum amount time in milliseconds before exit from the method by timeout.
   """
-  def consume(pid, queue, timeout \\ 1000, attempts \\ 5, call_timeout \\ 500) do
+  def consume(pid, queue, timeout \\ 1000, attempts \\ 5, call_timeout \\ 5000) do
     try do
       GenServer.call(pid, {:consume_response, queue, timeout, attempts}, call_timeout)
     catch
